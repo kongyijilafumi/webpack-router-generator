@@ -1,4 +1,5 @@
 const fs = require("fs");
+const chokidar = require("chokidar");
 const babelc = require("@babel/core");
 const babelt = require("@babel/types");
 const path = require("path");
@@ -10,48 +11,96 @@ class WebpackRouterGenerator {
     this.outputFile = outputFile || path.join(process.cwd(), "./src/router.js");
     this.comKey = comKey || "component";
     this.files = [];
-    this.exts = exts || [".js", ".jsx", "tsx", ".ts"];
+    this.exts = exts || [".js", ".jsx", ".tsx", ".ts"];
     this.watchFile = [];
     this.routerVar = "routes";
+    this.isWatch = false;
   }
 
-  apply() {
-    try {
-      this.readPath(this.fileDir);
-      if (this.files.length === 0) {
-        console.warn(
-          "WebpackRouterGenerator[warning]:未找到需要提取信息的文件"
-        );
-        return;
-      }
+  apply(compiler) {
+    compiler.hooks.environment.tap("WebpackRouterGenerator", () => {
       this.writeRouteFile();
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+      this.wacth(compiler);
+    });
   }
   // 写入数据到输出文件
   writeRouteFile() {
-    let routerInfo = this.getAllInfo() || `const ${this.routerVar} = []`;
-    let tempStr = `// 本文件为脚本自动生成，请勿修改
-
-    ${routerInfo}
-    
-    export default ${this.routerVar}`;
-    fs.writeFileSync(this.outputFile, tempStr, "utf8");
+    this.files = [];
+    try {
+      this.readPath(this.fileDir);
+    } catch (error) {
+      console.error(
+        "WebpackRouterGenerator[warning]:in writeRouteFile " + error
+      );
+      return;
+    }
+    if (this.files.length === 0) {
+      console.warn("WebpackRouterGenerator[warning]:未找到需要提取信息的文件");
+      return;
+    }
+    try {
+      let routerInfo = this.getAllInfo() || `const ${this.routerVar} = []`;
+      let tempStr = `
+  // 本文件为脚本自动生成，请勿修改
+  
+  ${routerInfo}
+      
+  export default ${this.routerVar}`;
+      fs.writeFileSync(this.outputFile, tempStr, "utf8");
+    } catch (err) {
+      console.error("WebpackRouterGenerator[error]:in getAllInfo " + err);
+    }
   }
 
+  // 启动监听
+  wacth(compiler) {
+    compiler.hooks.watchRun.tap("WebpackRouterGenerator", () => {
+      if (this.isWatch) {
+        return;
+      }
+      this.isWatch = true;
+      let timer;
+      const watchFileType = path.join(
+        this.fileDir,
+        `**/*.{${this.exts.map((i) => i.replace(".", "")).join(",")}}`
+      );
+      const hasFils = new Set();
+      const watchEvent = ["add", "unlink", "change"];
+      chokidar.watch([watchFileType], {}).on("all", (eventName, filepath) => {
+        if (watchEvent.includes(eventName)) {
+          const hasData = this.hasRouteConfig(this.getString(filepath));
+          if (!hasData && !hasFils.has(filepath)) {
+            return;
+          } else if (!hasData && hasFils.has(filepath)) {
+            hasFils.delete(filepath);
+          } else if (hasData && !hasFils.has(filepath)) {
+            hasFils.add(filepath);
+          }
+          clearTimeout(timer);
+          console.log(
+            "WebpackRouterGenerator[info]:" +
+              filepath +
+              "发生改变，1s后更新路由"
+          );
+          timer = setTimeout(() => {
+            this.writeRouteFile();
+          }, 1000);
+        }
+      });
+    });
+  }
   /**
    * 返回捕获到的信息
    * @returns {Object|null}
    */
   getAllInfo() {
-    let nodes = [];
+    let nodes = [],
+      wfilse = [];
     this.files.forEach((filepath) => {
       let node = this.getRouterInfo(filepath);
       if (node) {
         let time = this.getFileMtime(filepath);
-        this.watchFile.push({
+        wfilse.push({
           time,
           filepath,
         });
@@ -64,6 +113,7 @@ class WebpackRouterGenerator {
       );
       return null;
     }
+    this.watchFile = wfilse;
     return this.getRouterString(nodes, this.outputFile);
   }
 
@@ -89,6 +139,11 @@ class WebpackRouterGenerator {
     return babelc.transformFromAstSync(ast, "", { filename: outputFile }).code;
   }
 
+  hasRouteConfig(data) {
+    return new RegExp(
+      `(export\\s+const\\s+${this.KeyWord})|([\\w]+\\.${this.KeyWord})`
+    ).test(data);
+  }
   /**
    * 文件是否存在
    * @param {String} path 文件路径
@@ -114,10 +169,14 @@ class WebpackRouterGenerator {
    */
   getRouterInfo(filepath) {
     // 定义 () => import(....)
+    let relativePath = path.join(
+      path.relative(path.dirname(this.outputFile), this.fileDir),
+      path.relative(this.fileDir, filepath)
+    );
     const routeFunction = babelt.arrowFunctionExpression(
       [],
       babelt.callExpression(babelt.identifier("import"), [
-        babelt.stringLiteral(path.relative(this.outputFile, filepath)),
+        babelt.stringLiteral(relativePath),
       ])
     );
     // obj 的 属性与值  component : import(filepath)
@@ -127,7 +186,7 @@ class WebpackRouterGenerator {
     );
     const ast = babelc.parseSync(this.getString(filepath), {
       filename: filepath,
-      presets: [[require.resolve(" "), { target: "web" }]],
+      presets: [[require.resolve("@a8k/babel-preset"), { target: "web" }]],
     });
     // ast 文件主体
     const { body } = ast.program;
@@ -144,7 +203,7 @@ class WebpackRouterGenerator {
         babelt.isExportNamedDeclaration(node) &&
         babelt.isVariableDeclaration(node.declaration) &&
         babelt.isVariableDeclarator(node.declaration.declarations[0]) &&
-        nameKeys.includes(node.declaration.declarations[0].id.name) &&
+        this.KeyWord === node.declaration.declarations[0].id.name &&
         babelt.isObjectExpression(node.declaration.declarations[0].init)
       ) {
         return true;
@@ -181,6 +240,7 @@ class WebpackRouterGenerator {
     routerData.properties.push(componentNode);
     return routerData;
   }
+  // 寻找 节点下的 pro
   findRouterNode(body, name) {
     return body.find((node) => {
       if (babelt.isExpressionStatement(node)) {
@@ -247,6 +307,9 @@ class WebpackRouterGenerator {
   }
 
   getString(path) {
+    if (!fs.existsSync(path)) {
+      return null;
+    }
     return fs.readFileSync(path, "utf8");
   }
 }
