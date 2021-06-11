@@ -35,13 +35,13 @@ module.exports = {
 
 ## options's porperty(配置属性)
 
-| Property   | Type   | Default                                     | Descript                                                                                                                                                                     |
-| ---------- | ------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| KeyWord    | String | "route"                                     | 捕获的路由信息的关键词。                                                                                                                                                     |
-| fileDir    | String | path.join(process.cwd(), "./src/pages")     | 需要从哪个文件夹中提取信息：默认为项目入口`src/pages`,在这个目录中 寻找符合条件后缀文件的将会从中提取信息.并且会监听这个文件夹符合后缀文件的`修改，删除，添加`都会更新路由。 |
-| comKey     | String | "component"                                 | 导出路由文件的 key：当匹配到文件里有路由信息会记录该文件路径相对`输出文件`的`相对地址`生成路由信息`Object`的属性与值。如：`{ component: import(..\\pages\\test.js) }`。      |
-| outputFile | String | path.join(process.cwd(), "./src/router.js") | 生成路由列表信息的文件路径：提取出的路由信息将会组合成一个`Array`类型暴露出去。如：`const routes = [{....},{....}]; export default routes;`                                  |
-| exts       | Array  | [".js", ".jsx", ".tsx", ".ts"]              | 需要匹配的文件后缀名                                                                                                                                                         |
+| Property   | Type   | Default                                     | Descript                     |
+| ---------- | ------ | ------------------------------------------- | ---------------------------- |
+| KeyWord    | String | "route"                                     | 捕获的路由信息的关键词。     |
+| fileDir    | String | path.join(process.cwd(), "./src/pages")     | 需要从哪个文件夹中提取信息。 |
+| comKey     | String | "component"                                 | 导出路由文件的 key。         |
+| outputFile | String | path.join(process.cwd(), "./src/router.js") | 生成路由列表信息的文件路径。 |
+| exts       | Array  | [".js", ".jsx", ".tsx", ".ts"]              | 需要匹配的文件后缀名         |
 
 ### KeyWord
 
@@ -158,6 +158,7 @@ export default routes;
 需要从`fileDir`文件夹下哪些文件后缀提取路由信息。默认:`[".js", ".jsx", ".tsx", ".ts"]`
 
 以下文件都会被提取。
+
 ```shell
 ./src/pages/index.js
 ./src/pages/test.jsx
