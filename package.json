@@ -1,6 +1,6 @@
 {
   "name": "webpack-router-generator",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "A routing list is generated automatically according to the information defined in the file, which is used in webpack.",
   "main": "index.js",
   "scripts": {
