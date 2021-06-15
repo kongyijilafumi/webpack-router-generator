@@ -278,7 +278,7 @@ const routes = [
   {
     order: 1,
     path: "/",
-    component: () => import(".\\pages\\index.js"),
+    component: () => import("..\\pages\\index.js"),
   },
   {
     // .....
