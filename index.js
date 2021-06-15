@@ -5,7 +5,15 @@ const babelt = require("@babel/types");
 const path = require("path");
 
 class WebpackRouterGenerator {
-  constructor({ KeyWord, fileDir, comKey, outputFile, exts, insertBeforeStr }) {
+  constructor({
+    KeyWord,
+    fileDir,
+    comKey,
+    outputFile,
+    exts,
+    insertBeforeStr,
+    insertAfterStr,
+  }) {
     this.KeyWord = KeyWord || "route";
     this.fileDir = fileDir || path.join(process.cwd(), "./src/pages");
     this.outputFile = outputFile || path.join(process.cwd(), "./src/router.js");
@@ -15,7 +23,8 @@ class WebpackRouterGenerator {
     this.watchFile = [];
     this.routerVar = "routes";
     this.isWatch = false;
-    this.insertStr = insertBeforeStr || "";
+    this.insertBeforeStr = insertBeforeStr || "";
+    this.insertAfterStr = insertAfterStr || "";
   }
 
   apply(compiler) {
@@ -42,12 +51,13 @@ class WebpackRouterGenerator {
     try {
       let routerInfo = this.getAllInfo() || `const ${this.routerVar} = []`;
       let tempStr = `
-  // 本文件为脚本自动生成，请勿修改
-${this.insertStr}
-
+// 本文件为脚本自动生成，请勿修改
+${this.insertBeforeStr}
 
 ${routerInfo}
-      
+
+${this.insertAfterStr}
+
 export default ${this.routerVar}`;
       fs.writeFileSync(this.outputFile, tempStr, "utf8");
     } catch (err) {

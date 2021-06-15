@@ -35,13 +35,15 @@ module.exports = {
 
 ## options's porperty(配置属性)
 
-| Property   | Type   | Default                                     | Descript                     |
-| ---------- | ------ | ------------------------------------------- | ---------------------------- |
-| KeyWord    | String | "route"                                     | 捕获的路由信息的关键词。     |
-| fileDir    | String | path.join(process.cwd(), "./src/pages")     | 需要从哪个文件夹中提取信息。 |
-| comKey     | String | "component"                                 | 导出路由文件的 key。         |
-| outputFile | String | path.join(process.cwd(), "./src/router.js") | 生成路由列表信息的文件路径。 |
-| exts       | Array  | [".js", ".jsx", ".tsx", ".ts"]              | 需要匹配的文件后缀名         |
+| Property        | Type   | Default                                     | Descript                               |
+| --------------- | ------ | ------------------------------------------- | -------------------------------------- |
+| KeyWord         | String | "route"                                     | 捕获的路由信息的关键词。               |
+| fileDir         | String | path.join(process.cwd(), "./src/pages")     | 需要从哪个文件夹中提取信息。           |
+| comKey          | String | "component"                                 | 导出路由文件的 key。                   |
+| outputFile      | String | path.join(process.cwd(), "./src/router.js") | 生成路由列表信息的文件路径。           |
+| exts            | Array  | [".js", ".jsx", ".tsx", ".ts"]              | 需要匹配的文件后缀名                   |
+| insertBeforeStr | String | ""                                          | 生成文件的插入字符，插入在列表变量之前 |
+| insertAfterStr  | String | ""                                          | 生成文件的插入字符，插入在列表变量之后 |
 
 ### KeyWord
 
@@ -70,13 +72,28 @@ Test.route =[{
 
 #### 使用 export const 暴露的变量名与关键词匹配
 
+如果 export const 暴露出的变量名类型为`数组格式`，需要自己定义`components`属性。他会原封不动的把数组里的每一项拼接起来，不会自动添加路径文件组件。
+
 ```js
 // ./src/pages/test.js
 
 // success type:Object
 export const route = { tile: "test", path: "/test" };
-// fail type: not Object
-export const route = { tile: "test", path: "/test" };
+// success type: Array
+export const route = [
+  { tile: "test", path: "/test", component: () => import("./pages/test.js") },
+];
+```
+
+生成文件`./src/router.js`
+
+```js
+// ./src/router.js
+const routes = [
+  { title: "test", path: "/test", component: () => import("./pages/test.js") },
+  // .....
+];
+export default routes;
 ```
 
 ### fileDir
@@ -88,7 +105,8 @@ export const route = { tile: "test", path: "/test" };
 ```js
 // ./src/router.js
 const routes = [
-  { title: "test", path: "/test", component: import(".\\pages\\test.js") },
+  { title: "test", path: "/test", component:()=> import(".\\pages\\test.js") },
+  // .....
 ];
 export default routes;
 
@@ -122,7 +140,11 @@ Test.route = {
 ```js
 // ./src/router.js
 const routes = [
-  { title: "哈哈哈哈", path: "/test", component: import(".\\pages\\test.js") },
+  {
+    title: "哈哈哈哈",
+    path: "/test",
+    component: () => import(".\\pages\\test.js"),
+  },
 ];
 export default routes;
 ```
@@ -134,7 +156,11 @@ export default routes;
 ```js
 // ./src/router.js
 const routes = [
-  { title: "test", path: "/test", component: import(".\\pages\\test.js") },
+  {
+    title: "test",
+    path: "/test",
+    component: () => import(".\\pages\\test.js"),
+  },
 ];
 export default routes;
 ```
@@ -144,7 +170,8 @@ export default routes;
 ```js
 // ./src/router.js
 const routes = [
-  { title: "test", path: "/test", page: import(".\\pages\\test.js") },
+  { title: "test", path: "/test", page: () => import(".\\pages\\test.js") },
+  // ....
 ];
 export default routes;
 ```
@@ -164,4 +191,97 @@ export default routes;
 ./src/pages/test.jsx
 ./src/pages/demo.tsx
 ./src/pages/page.ts
+```
+
+### insertBeforeStr
+
+需要插入生产文件变量之前的字符串。例如 insertBeforeStr 为`import React from "react"`,它将会变量之前显示。
+
+```js
+// 本文件为脚本自动生成，请勿修改
+import React from "react";
+
+const routes = [
+  {
+    //......
+  },
+];
+
+export default routes;
+```
+
+### insertAfterStr
+
+需要插入生产文件变量之后的字符串。例如 insertAfterStr 为`routes.push({title:"after",key:"after",component:()=>import("./pages/after.js")})`,它将会变量之后显示。
+
+```js
+// 本文件为脚本自动生成，请勿修改
+
+const routes = [
+  {
+    //......
+  },
+];
+
+routes.push({
+  title: "after",
+  key: "after",
+  component: () => import("./pages/after.js"),
+});
+export default routes;
+```
+
+### 暴露出的路由信息
+
+支持信息自定义，排序。
+
+`Array类型` 会原封不动的把数据拼接到生成的列表了，需要自己手动添加文件路径信息等。
+
+```js
+// ./pages/index.js
+// array
+export const route = [
+  {
+    order: 1, // number  支持排序，越小越靠前，越大越靠后。 若无此项默认为 0 靠前
+    path: "/",
+  },
+];
+```
+
+```js
+// ./src/router.js
+const routes = [
+  {
+    path: "/",
+    order: 1,
+  },
+  {
+    // .....
+  },
+];
+```
+
+`Object类型` 会自动添加当前文件与生成文件的相对路径。
+
+```js
+// ./pages/index.js
+// object
+export const route = {
+  order: 1, // number  支持排序，越小越靠前，越大越靠后。 若无此项默认为 0 靠前
+  path: "/",
+};
+```
+
+```js
+// ./src/router.js
+const routes = [
+  {
+    order: 1,
+    path: "/",
+    component: () => import(".\\pages\\index.js"),
+  },
+  {
+    // .....
+  },
+];
 ```
