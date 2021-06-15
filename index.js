@@ -5,7 +5,7 @@ const babelt = require("@babel/types");
 const path = require("path");
 
 class WebpackRouterGenerator {
-  constructor({ KeyWord, fileDir, comKey, outputFile, exts }) {
+  constructor({ KeyWord, fileDir, comKey, outputFile, exts, insertBeforeStr }) {
     this.KeyWord = KeyWord || "route";
     this.fileDir = fileDir || path.join(process.cwd(), "./src/pages");
     this.outputFile = outputFile || path.join(process.cwd(), "./src/router.js");
@@ -15,6 +15,7 @@ class WebpackRouterGenerator {
     this.watchFile = [];
     this.routerVar = "routes";
     this.isWatch = false;
+    this.insertStr = insertBeforeStr || "";
   }
 
   apply(compiler) {
@@ -42,10 +43,12 @@ class WebpackRouterGenerator {
       let routerInfo = this.getAllInfo() || `const ${this.routerVar} = []`;
       let tempStr = `
   // 本文件为脚本自动生成，请勿修改
-  
-  ${routerInfo}
+${this.insertStr}
+
+
+${routerInfo}
       
-  export default ${this.routerVar}`;
+export default ${this.routerVar}`;
       fs.writeFileSync(this.outputFile, tempStr, "utf8");
     } catch (err) {
       console.error("WebpackRouterGenerator[error]:in getAllInfo " + err);
@@ -98,13 +101,13 @@ class WebpackRouterGenerator {
       wfilse = [];
     this.files.forEach((filepath) => {
       let node = this.getRouterInfo(filepath);
-      if (node) {
+      if (node && node.length) {
         let time = this.getFileMtime(filepath);
         wfilse.push({
           time,
           filepath,
         });
-        nodes.push(node);
+        nodes.push(...node);
       }
     });
     if (nodes.length === 0) {
@@ -114,6 +117,7 @@ class WebpackRouterGenerator {
       return null;
     }
     this.watchFile = wfilse;
+    nodes.sort((a, b) => this.sortNode(a) - this.sortNode(b));
     return this.getRouterString(nodes, this.outputFile);
   }
 
@@ -139,11 +143,35 @@ class WebpackRouterGenerator {
     return babelc.transformFromAstSync(ast, "", { filename: outputFile }).code;
   }
 
+  // 节点排序
+  sortNode(node) {
+    if (!node.properties) {
+      return 0;
+    }
+    const sortNode = node.properties.find((i) => {
+      if (!babelt.isObjectProperty(i)) {
+        return false;
+      }
+      return i.key.name === "order";
+    });
+    if (sortNode) {
+      if (babelt.isNumericLiteral(sortNode.value)) {
+        return sortNode.value.value;
+      }
+      if (babelt.isUnaryExpression(sortNode.value)) {
+        const { value } = sortNode;
+        return Number(value.operator + value.argument.value);
+      }
+    }
+    return 0;
+  }
+
   hasRouteConfig(data) {
     return new RegExp(
       `(export\\s+const\\s+${this.KeyWord})|([\\w]+\\.${this.KeyWord})`
     ).test(data);
   }
+
   /**
    * 文件是否存在
    * @param {String} path 文件路径
@@ -204,7 +232,8 @@ class WebpackRouterGenerator {
         babelt.isVariableDeclaration(node.declaration) &&
         babelt.isVariableDeclarator(node.declaration.declarations[0]) &&
         this.KeyWord === node.declaration.declarations[0].id.name &&
-        babelt.isObjectExpression(node.declaration.declarations[0].init)
+        (babelt.isObjectExpression(node.declaration.declarations[0].init) ||
+          babelt.isArrayExpression(node.declaration.declarations[0].init))
       ) {
         return true;
       }
@@ -236,10 +265,13 @@ class WebpackRouterGenerator {
       }
       routerData = routerNode.expression.right;
     }
-
-    routerData.properties.push(componentNode);
-    return routerData;
+    const isAarrayNode = babelt.isArrayExpression(routerData);
+    if (!isAarrayNode) {
+      routerData.properties.push(componentNode);
+    }
+    return isAarrayNode ? routerData.elements : [routerData];
   }
+
   // 寻找 节点下的 pro
   findRouterNode(body, name) {
     return body.find((node) => {
