@@ -91,9 +91,9 @@ export default ${this.routerVar}`;
           }
           clearTimeout(timer);
           console.log(
-            "WebpackRouterGenerator[info]:" +
+            "WebpackRouterGenerator[info]: \n" +
               filepath +
-              "发生改变，1s后更新路由"
+              " 检测到路由信息，1s后更新路由"
           );
           timer = setTimeout(() => {
             this.writeRouteFile();
@@ -274,6 +274,10 @@ export default ${this.routerVar}`;
         return null;
       }
       routerData = routerNode.expression.right;
+    }
+    if (!routerData) {
+      console.log(filepath + " 未获取到路由信息");
+      return null;
     }
     const isAarrayNode = babelt.isArrayExpression(routerData);
     if (!isAarrayNode) {
