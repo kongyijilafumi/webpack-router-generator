@@ -153,8 +153,7 @@ export default ${this.routerVar}`
     const watchEvent = ["add", "unlink", "change"];
     this.watcher = chokidar.watch([watchFileType], {}).on("all", (eventName, filePath) => {
       if (!watchEvent.includes(eventName)) return
-      const hasNode = this.setCurrentPageNode(filePath)
-      if (!hasNode && eventName !== "unlink") return
+      this.setCurrentPageNode(filePath)
       clearTimeout(this.timer)
       log("log", `${eventName} ${filePath} 1s后更新路由文件！`)
       this.timer = setTimeout(() => {
@@ -167,5 +166,12 @@ export default ${this.routerVar}`
     compiler.hooks.environment.tap("WebpackRouterGenerator", () => {
       this.watch()
     });
+    compiler.hooks.done.tap("WebpackRouterGenerator", () => {
+      const mode = (process.env.NODE_ENV || process.env.BABEL_ENV)
+      if (this.watcher && this.watcher.close && mode === "production") {
+        console.log("关闭监听");
+        this.watcher.close()
+      }
+    })
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "webpack-router-generator",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A routing list is generated automatically according to the information defined in the file, which is used in webpack.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
@@ -11,6 +11,9 @@
     "auto-router",
     "webpack-generator"
   ],
+  "scripts": {
+    "update:version": "npm publish"
+  },
   "author": {
     "name": "kongyijilafumi",
     "url": "https://github.com/kongyijilafumi"
